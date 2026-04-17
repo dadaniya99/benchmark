@@ -13,16 +13,33 @@
 
 | 平台 | 下载 |
 |------|------|
-| Windows | [benchmark-windows.exe](https://github.com/maonanbei/benchmark/releases/latest) |
-| macOS | [benchmark-macos](https://github.com/maonanbei/benchmark/releases/latest) |
-| Linux | [benchmark-linux](https://github.com/maonanbei/benchmark/releases/latest) |
+| Windows | [benchmark-windows.exe](https://github.com/dadaniya99/benchmark/releases/latest) |
+| macOS | [benchmark-macos](https://github.com/dadaniya99/benchmark/releases/latest) |
+| Linux | [benchmark-linux](https://github.com/dadaniya99/benchmark/releases/latest) |
 
 ## 使用
 
-1. 下载对应平台的可执行文件
-2. 双击运行（Windows/macOS）或 `./benchmark-linux`（Linux）
+### Windows
+1. 下载 `benchmark-windows.exe`
+2. 双击运行
 3. 浏览器自动打开界面
-4. 输入 API Key 和配置，开始测试
+
+### macOS
+1. 下载 `benchmark-macos`
+2. **右键点击** → 选择"打开" → 点击"打开"（首次运行需要）
+3. 浏览器自动打开界面
+
+> **提示**：如果双击没反应，请用右键"打开"的方式运行。这是 macOS 的安全机制，不是程序有问题。
+
+### Linux
+1. 下载 `benchmark-linux`
+2. 终端运行：`chmod +x benchmark-linux && ./benchmark-linux`
+3. 浏览器自动打开界面
+
+### 通用步骤
+1. 程序启动后浏览器会自动打开
+2. 输入 Base URL、API Key 和模型 ID
+3. 点击"开始测试"
 
 ## 从源码运行
 
