@@ -2,6 +2,14 @@
 
 一个简单易用的本地大模型评测工具，10 项测试、50 分满分，跑完出总分和雷达图。
 
+## 下载
+
+| 平台 | 下载 |
+|------|------|
+| Windows | [benchmark-windows.exe](https://github.com/dadaniya99/benchmark/releases/latest/download/benchmark-windows.exe) |
+| macOS | [benchmark-macos](https://github.com/dadaniya99/benchmark/releases/latest/download/benchmark-macos) |
+| Linux | [benchmark-linux](https://github.com/dadaniya99/benchmark/releases/latest/download/benchmark-linux) |
+
 ## 功能特点
 
 - ✅ **10 项综合能力测试** - 代码、推理、语言、上下文处理
