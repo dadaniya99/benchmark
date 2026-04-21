@@ -106,3 +106,12 @@ A: 通常 2-5 分钟，取决于模型响应速度。
 ## License
 
 MIT License
+
+
+## v1.1.1 — 2026-04-21
+
+### 🐛 本次修复
+- **修复 Cloudflare WAF 403 拦截问题** — 在 `call_api()` 函数中为 OpenAI 和 Anthropic 协议请求添加浏览器级 `User-Agent` 头。此前 Python `urllib` 默认 UA（`Python-urllib/3.x`）被部分供应商的 Cloudflare WAF 识别为爬虫并拦截，导致测试全部报 403 错误。修复后正常通过。
+
+### 适用场景
+当你的 API 供应商使用了 Cloudflare 防护（如 GMN 等），旧版本会因 UA 拦截而跑不通。升级到 v1.1.1 即可解决。

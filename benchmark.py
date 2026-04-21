@@ -170,7 +170,12 @@ def call_api(base_url, api_key, model, messages, protocol='openai', timeout=300)
     if protocol == 'anthropic':
         # Anthropic 协议：尝试多个端点
         endpoints = get_anthropic_endpoints(base_url)
-        headers = {'Content-Type': 'application/json', 'x-api-key': api_key, 'anthropic-version': '2023-06-01'}
+        headers = {
+            'Content-Type': 'application/json',
+            'x-api-key': api_key,
+            'anthropic-version': '2023-06-01',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        }
         body = {'model': model, 'max_tokens': 8192, 'temperature': 0.2, 'messages': messages}
         
         last_error = None
@@ -216,7 +221,11 @@ def call_api(base_url, api_key, model, messages, protocol='openai', timeout=300)
     else:
         # OpenAI 协议
         url = get_openai_endpoint(base_url)
-        headers = {'Content-Type': 'application/json', 'Authorization': f'Bearer {api_key}'}
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {api_key}',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        }
         body = {'model': model, 'max_tokens': 8192, 'temperature': 0.2, 'messages': messages}
         
         for attempt in range(3):
@@ -243,11 +252,24 @@ def call_api(base_url, api_key, model, messages, protocol='openai', timeout=300)
 
 
 def detect_protocol(base_url, api_key, model):
+    """自动检测协议，OpenAI 404时自动尝试 Anthropic"""
+    # 先尝试 OpenAI
     try:
         res = call_api(base_url, api_key, model, [{'role': 'user', 'content': 'Hi'}], 'openai', timeout=30)
-        if res['ok'] or ('404' not in (res.get('error') or '')):
+        if res['ok']:
             return 'openai'
+        # 如果是 404 错误，自动尝试 Anthropic
+        if '404' in (res.get('error') or ''):
+            print(f"[检测] OpenAI 协议返回 404，尝试 Anthropic 协议...")
+            try:
+                res2 = call_api(base_url, api_key, model, [{'role': 'user', 'content': 'Hi'}], 'anthropic', timeout=30)
+                if res2['ok'] or res2.get('error'):
+                    return 'anthropic'
+            except: pass
+        # 其他错误但非 404，仍认为是 OpenAI
+        return 'openai'
     except: pass
+    # OpenAI 失败，尝试 Anthropic
     try:
         res = call_api(base_url, api_key, model, [{'role': 'user', 'content': 'Hi'}], 'anthropic', timeout=30)
         if res['ok'] or res.get('error'):
@@ -449,8 +471,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans SC',sans
 .card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:24px;margin-bottom:20px}
 .fg{margin-bottom:16px}.fg:last-of-type{margin-bottom:0}
 .fg label{display:block;font-size:.85rem;font-weight:600;color:var(--muted);margin-bottom:6px}
-.fg input{width:100%;background:var(--input);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:.9rem;outline:none}
-.fg input:focus{border-color:var(--blue)}
+.fg input,.fg select{width:100%;background:var(--input);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:.9rem;outline:none}
+.fg input:focus,.fg select:focus{border-color:var(--blue)}
 .iw{position:relative}
 .tb{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--blue);cursor:pointer;font-size:.85rem}
 .btn{width:100%;padding:12px;background:var(--green);color:#000;border:none;border-radius:8px;font-size:1rem;font-weight:700;cursor:pointer;margin-top:16px}
@@ -492,6 +514,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans SC',sans
 <div class="fg"><label>Base URL</label><input type="url" id="baseUrl" placeholder="https://api.openai.com/v1 或 https://openrouter.ai/api/v1/chat/completions"></div>
 <div class="fg"><label>API Key</label><div class="iw"><input type="password" id="apiKey" placeholder="sk-..."><button class="tb" onclick="let i=document.getElementById('apiKey');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'显示':'隐藏'">显示</button></div></div>
 <div class="fg"><label>模型 ID</label><input type="text" id="modelId" placeholder="gpt-4o / claude-sonnet-4-20250514 / google/gemini-3.1-flash"></div>
+<div class="fg"><label>协议类型（选填，留空自动识别）</label><select id="protocolSelect" style="width:100%;background:var(--input);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:.9rem;outline:none"><option value="">自动识别</option><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option></select></div>
 <div class="fg"><label>大模型提供商调用示例（用于取URL和协议，选填）</label><textarea class="ta" id="exampleCode" placeholder="粘贴 curl、Python 或 JavaScript 示例代码，例如：
 curl https://api.example.com/v1/chat/completions \
   -H 'Authorization: Bearer sk-xxx' \
@@ -503,7 +526,7 @@ curl https://api.example.com/v1/chat/completions \
 <div class="card ps" id="ps"><div class="pb"><div class="pf" id="pf"></div></div><div class="pi"><span id="ct">准备中...</span><span id="pc">0 / 10</span></div><button class="btn stop" id="btnStop" onclick="stopTest()">停止测试</button></div>
 <div id="pcCard" class="card" style="display:none;text-align:center;color:var(--muted);font-size:.9rem"><span id="pcMsg"></span></div>
 <div id="rc"></div>
-<div class="card sc" id="sc"><div class="sb" id="ts">0</div><div class="sm">/ 50</div><div class="vd" id="vd"></div><button class="be" onclick="exportMD()">导出 Markdown 报告</button></div>
+<div class="card sc" id="sc"><div class="sb" id="ts">0</div><div class="sm">/ 50</div><div class="vd" id="vd"></div><canvas id="radarChart" width="600" height="480" style="display:block;margin:20px auto;background:rgba(255,255,255,0.05);border-radius:12px;max-width:100%"></canvas><button class="be" onclick="exportMD()">导出 Markdown 报告</button></div>
 <div class="ft">所有 API 调用通过本地 Python 服务转发，无 CORS 限制。<br>需要 Python 3.7+ 运行环境 | 如遇问题请确认已运行 python benchmark.py</div>
 </div>
 <script>
@@ -529,6 +552,7 @@ if(urlMatch){
 let url=urlMatch[0];
 if(url.includes('/chat/completions')){protocol='openai';base_url=url.split('/chat/completions')[0]}
 else if(url.includes('/messages')){protocol='anthropic';base_url=url.split('/messages')[0]}
+else if(url.includes('anthropic')){protocol='anthropic';base_url=url.replace(/\/$/,'')}
 else if(url.includes('/v1/')){base_url=url.split('/v1/')[0]+'/v1'}
 else{base_url=url.replace(/\/$/,'')}
 }
@@ -541,12 +565,18 @@ function startTest(){
 let b=document.getElementById('baseUrl').value.trim(),k=document.getElementById('apiKey').value.trim(),m=document.getElementById('modelId').value.trim();
 const exampleCode=document.getElementById('exampleCode').value.trim();
 const replaceModel=document.getElementById('replaceModel').checked;
+const protocolSelect=document.getElementById('protocolSelect').value;
 const parseErr=document.getElementById('parseErr');
 parseErr.classList.remove('act');
+// 优先使用手动选择的协议
+if(protocolSelect){
+window.forcedProtocol=protocolSelect;
+}
 if(exampleCode){
 const parsed=parseExample();
 if(parsed.base_url&&!b)b=parsed.base_url;
-if(parsed.protocol)window.forcedProtocol=parsed.protocol;
+// 如果用户没有手动选择协议，才使用示例代码识别的协议
+if(!protocolSelect&&parsed.protocol)window.forcedProtocol=parsed.protocol;
 if(replaceModel&&parsed.model){m=parsed.model;document.getElementById('modelId').value=m}
 else if(replaceModel&&!parsed.model){parseErr.textContent='示例代码中未找到模型ID，请手动填写或取消勾选';parseErr.classList.add('act');return}
 if(!b&&!parsed.base_url){parseErr.textContent='无法识别示例代码中的URL，请手动填写';parseErr.classList.add('act');return}
@@ -585,7 +615,7 @@ c.innerHTML='';
 d.results.forEach((r,i)=>{
 const t=TESTS[i],ic=r.score>=5?'✅':(r.score>=3?'⚠️':'❌'),cl=r.score>=5?'s5':(r.score>=3?'s3':'s0');
 const div=document.createElement('div');div.className='ri'+(r.score===0?' open':'');
-div.innerHTML='<div class="rh" onclick="this.parentElement.classList.toggle(\'open\')"><span>'+ic+'</span><span class="rn">'+t.icon+' '+t.name+'</span><span class="rs '+cl+'">'+r.score+'/5</span><span class="rm"><span>'+r.elapsed.toFixed(1)+'s</span><span>\u25bc</span></span></div><div class="rb"><div class="rbi"><div class="rbn">\ud83d\udcdd '+r.note+(r.error?' \xb7 \u26a0\ufe0f '+esc(r.error):'')+'</div><div class="rbt">'+esc(r.text||'(无回复)')+'</div></div></div>';
+let errorMsg=r.error?esc(r.error):'';if(errorMsg.includes('404')){errorMsg+=' <span style="color:var(--yellow)">💡 提示: 404错误可能是协议不匹配，请尝试在"协议类型"中选择 Anthropic</span>'}div.innerHTML='<div class="rh" onclick="this.parentElement.classList.toggle(\'open\')"><span>'+ic+'</span><span class="rn">'+t.icon+' '+t.name+'</span><span class="rs '+cl+'">'+r.score+'/5</span><span class="rm"><span>'+r.elapsed.toFixed(1)+'s</span><span>\u25bc</span></span></div><div class="rb"><div class="rbi"><div class="rbn">\ud83d\udcdd '+r.note+(errorMsg?' \xb7 \u26a0\ufe0f '+errorMsg:'')+'</div><div class="rbt">'+esc(r.text||'(无回复)')+'</div></div></div>';
 c.appendChild(div);requestAnimationFrame(()=>div.classList.add('vis'));
 });
 }
@@ -597,6 +627,8 @@ const tot=d.total;document.getElementById('ts').textContent=tot;
 let v,vc;if(tot>=45){v='\ud83c\udfc6 顶级水平';vc='t'}else if(tot>=40){v='\ud83c\udf1f 优秀';vc='g'}else if(tot>=30){v='\ud83d\udc4d 中等';vc='m'}else{v='\u26a0\ufe0f 偏弱';vc='w'}
 const ve=document.getElementById('vd');ve.textContent=v;ve.className='vd '+vc;
 document.getElementById('sc').classList.add('act');results=d.results;
+// 绘制雷达图
+setTimeout(()=>drawRadarChart(d.results),100);
 const btn=document.getElementById('btnStart');btn.disabled=false;btn.textContent='重新测试';
 document.getElementById('btnStop').disabled=false;
 }else{setTimeout(poll,1000)}
@@ -620,10 +652,111 @@ const parts=host.split('.');
 if(parts.length>=2)provider=parts[parts.length-2];
 }
 }
-let md='# AI 大模型基准测试报告\n\n- **模型**: '+m+'\n- **供应商**: '+provider+'\n- **总分**: '+t+'/50\n- **时间**: '+new Date().toLocaleString('zh-CN')+'\n\n| # | 测试项 | 得分 | 耗时 | 备注 |\n|---|--------|------|------|------|\n';
-results.forEach((r,i)=>{md+='| '+(i+1)+' | '+TESTS[i].name+' | '+r.score+'/5 | '+r.elapsed.toFixed(1)+'s | '+r.note+' |\n'});
+// 获取雷达图 base64
+const canvas=document.getElementById('radarChart');
+let radarImg='';
+if(canvas){radarImg='![雷达图]('+canvas.toDataURL('image/png')+')\n\n';}
+// 计算各维度得分
+const dimScores=GROUPS.map(g=>{const s=g.indices.map(i=>results[i].score);return(s.reduce((a,b)=>a+b,0)/s.length).toFixed(1);});
+let md='# AI 大模型基准测试报告\n\n'+radarImg+'- **模型**: '+m+'\n- **供应商**: '+provider+'\n- **总分**: '+t+'/50\n- **时间**: '+new Date().toLocaleString('zh-CN')+'\n\n## 各维度得分\n\n| 维度 | 得分 | 说明 |\n|------|------|------|\n';
+GROUPS.forEach((g,i)=>{md+='| '+g.name+' | '+dimScores[i]+'/5 | '+g.desc+' |\n';});
+md+='\n## 详细测试结果\n\n| # | 测试项 | 得分 | 耗时 | 备注 |\n|---|--------|------|------|------|\n';
+results.forEach((r,i)=>{md+='| '+(i+1)+' | '+TESTS[i].name+' | '+r.score+'/5 | '+r.elapsed.toFixed(1)+'s | '+r.note+' |\n';});
 const blob=new Blob([md],{type:'text/markdown'});const a=document.createElement('a');
 a.href=URL.createObjectURL(blob);a.download='benchmark-'+provider+'-'+m.replace(/\//g,'-')+'-'+Date.now()+'.md';a.click();
+}
+// 测试分组定义
+const GROUPS=[
+{name:'💻代码能力',indices:[1,6,8],desc:'代码修改+二次修改+编程专项'},
+{name:'🧠推理分析',indices:[2,7],desc:'复杂推理+事实控制'},
+{name:'📝语言表达',indices:[3,4],desc:'长文输出+中文沟通'},
+{name:'✏️上下文处理',indices:[5,9],desc:'改写衔接+多轮对话'},
+{name:'🎯综合执行',indices:[0],desc:'多约束执行'}
+];
+function drawRadarChart(results){
+const canvas=document.getElementById('radarChart');
+if(!canvas)return;
+const ctx=canvas.getContext('2d');
+const w=canvas.width,h=canvas.height-40;
+const cx=w/2,cy=h/2+10;
+const r=Math.min(w,h)/2-50;
+const n=GROUPS.length;
+const maxScore=5;
+// 计算每组得分
+const groupScores=GROUPS.map(g=>{
+const scores=g.indices.map(i=>results[i].score);
+return scores.reduce((a,b)=>a+b,0)/scores.length;
+});
+// 清空画布
+ctx.clearRect(0,0,w,h+40);
+// 绘制背景网格（5层）
+ctx.strokeStyle='rgba(255,255,255,0.1)';ctx.lineWidth=1;
+for(let i=1;i<=5;i++){
+ctx.beginPath();
+for(let j=0;j<n;j++){
+const angle=j*2*Math.PI/n-Math.PI/2;
+const pr=r*i/5;
+const x=cx+pr*Math.cos(angle);
+const y=cy+pr*Math.sin(angle);
+if(j===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+}
+ctx.closePath();ctx.stroke();
+}
+// 绘制轴线
+for(let i=0;i<n;i++){
+const angle=i*2*Math.PI/n-Math.PI/2;
+ctx.beginPath();ctx.moveTo(cx,cy);
+ctx.lineTo(cx+r*Math.cos(angle),cy+r*Math.sin(angle));ctx.stroke();
+}
+// 绘制数据区域
+ctx.fillStyle='rgba(74,222,128,0.3)';ctx.strokeStyle='#4ade80';ctx.lineWidth=2;
+ctx.beginPath();
+for(let i=0;i<n;i++){
+const angle=i*2*Math.PI/n-Math.PI/2;
+const score=groupScores[i];
+const pr=r*score/maxScore;
+const x=cx+pr*Math.cos(angle);
+const y=cy+pr*Math.sin(angle);
+if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+}
+ctx.closePath();ctx.fill();ctx.stroke();
+// 绘制数据点
+for(let i=0;i<n;i++){
+const angle=i*2*Math.PI/n-Math.PI/2;
+const score=groupScores[i];
+const pr=r*score/maxScore;
+const x=cx+pr*Math.cos(angle);
+const y=cy+pr*Math.sin(angle);
+ctx.fillStyle=score>=4?'#4ade80':(score>=2?'#facc15':'#f87171');
+ctx.beginPath();ctx.arc(x,y,5,0,2*Math.PI);ctx.fill();
+// 显示分数
+ctx.fillStyle='#fff';ctx.font='bold 10px sans-serif';
+ctx.fillText(score.toFixed(1),x+8,y-8);
+}
+// 绘制标签（错开位置避免重叠）
+ctx.fillStyle='#fff';ctx.font='bold 13px sans-serif';ctx.textBaseline='middle';
+for(let i=0;i<n;i++){
+const angle=i*2*Math.PI/n-Math.PI/2;
+const label=GROUPS[i].name;
+// 根据角度调整标签位置和对齐方式
+let lx,ly,textAlign;
+if(angle>-Math.PI/4&&angle<Math.PI/4){// 右侧
+lx=cx+(r+35)*Math.cos(angle);ly=cy+(r+35)*Math.sin(angle);textAlign='left';
+}else if(angle>=Math.PI/4&&angle<3*Math.PI/4){// 下方
+lx=cx+(r+30)*Math.cos(angle);ly=cy+(r+45)*Math.sin(angle);textAlign='center';
+}else if(angle>=3*Math.PI/4||angle<-3*Math.PI/4){// 左侧
+lx=cx+(r+35)*Math.cos(angle);ly=cy+(r+35)*Math.sin(angle);textAlign='right';
+}else{// 上方
+lx=cx+(r+30)*Math.cos(angle);ly=cy+(r+30)*Math.sin(angle);textAlign='center';
+}
+ctx.textAlign=textAlign;
+ctx.fillText(label,lx,ly);
+}
+// 绘制分组说明
+ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='9px sans-serif';ctx.textAlign='center';
+let descY=h+15;
+ctx.fillText('💻代码:代码修改+二次修改+编程 | 🧠推理:复杂推理+事实控制 | 📝语言:长文输出+中文沟通',w/2,descY);
+ctx.fillText('✏️上下文:改写衔接+多轮对话 | 🎯综合:多约束执行',w/2,descY+12);
 }
 </script>
 </body>
@@ -657,7 +790,7 @@ if __name__ == '__main__':
     print(f'  按 Ctrl+C 停止服务')
     print('=' * 50)
 
-    webbrowser.open(url)
+    webbrowser.open_new_tab(url)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
