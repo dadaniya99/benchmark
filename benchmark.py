@@ -540,7 +540,6 @@ curl https://api.example.com/v1/chat/completions \
 <div class="err" id="parseErr">无法识别示例代码，请手动填写URL和协议</div>
 <button class="btn" id="btnStart" onclick="startTest()">开始测试</button>
 <button class="btn" id="btnStop" onclick="stopTest()" style="display:none;margin-top:8px;background:#f85149;color:#fff">停止测试</button>
-<button class="btn" id="btnShutdown" onclick="shutdownService()" style="margin-top:8px;background:#6e7681;color:#fff">退出服务</button>
 </div>
 <div class="card ps" id="ps"><div class="pb"><div class="pf" id="pf"></div></div><div class="pi"><span id="ct">准备中...</span><span id="pc">0 / 10</span></div></div>
 <div id="pcCard" class="card" style="display:none;text-align:center;color:var(--muted);font-size:.9rem"><span id="pcMsg"></span></div>
@@ -602,7 +601,7 @@ if(!b&&!parsed.base_url){parseErr.textContent='无法识别示例代码中的URL
 }
 if(!b||!k||!m){alert('请填写所有字段');return}
 const btn=document.getElementById('btnStart');btn.disabled=true;btn.textContent='测试中...';
-document.getElementById('btnStop').style.display='block';
+document.getElementById('btnStop').style.display='block';document.getElementById('btnStop').disabled=false;document.getElementById('btnStop').textContent='停止测试';document.getElementById('btnStop').disabled=false;document.getElementById('btnStop').textContent='停止测试';
 results=[];document.getElementById('rc').innerHTML='';document.getElementById('sc').classList.remove('act');
 document.getElementById('ps').classList.add('act');document.getElementById('pcCard').style.display='none';
 // 保存表单状态
@@ -618,11 +617,6 @@ poll();
 function stopTest(){
 const btn=document.getElementById('btnStop');btn.disabled=true;btn.textContent='停止中...';
 fetch('/api/stop',{method:'POST',headers:{'Content-Type':'application/json'}}).catch(()=>{});
-}
-function shutdownService(){
-if(confirm('确定要退出服务吗？')){
-fetch('/api/shutdown',{method:'POST',headers:{'Content-Type':'application/json'}}).then(()=>{document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#8b949e;font-size:1.2rem">服务已关闭，可安全关闭此页面</div>';}).catch(()=>{window.close();});
-}
 }
 function restoreForm(){
 const s=window._savedForm;
@@ -787,6 +781,8 @@ let descY=h+15;
 ctx.fillText('💻代码:代码修改+二次修改+编程 | 🧠推理:复杂推理+事实控制 | 📝语言:长文输出+中文沟通',w/2,descY);
 ctx.fillText('✏️上下文:改写衔接+多轮对话 | 🎯综合:多约束执行',w/2,descY+12);
 }
+// 浏览器关闭时自动退出服务
+window.addEventListener('beforeunload',function(){navigator.sendBeacon('/api/shutdown');});
 </script>
 </body>
 </html>'''
