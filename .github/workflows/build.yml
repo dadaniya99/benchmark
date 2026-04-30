@@ -94,14 +94,15 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         path: artifacts
+        merge-multiple: true
     
     - name: Create Release
-      uses: softprops/action-gh-release@v2.2.1
+      uses: softprops/action-gh-release@v2
       with:
         files: |
-          artifacts/benchmark-windows/benchmark-windows.exe
-          artifacts/benchmark-macos/benchmark-macos
-          artifacts/benchmark-linux/benchmark-linux
+          artifacts/benchmark-windows.exe
+          artifacts/benchmark-macos
+          artifacts/benchmark-linux
         tag_name: ${{ github.ref_name }}
         name: Benchmark Tool ${{ github.ref_name }}
         body: |
