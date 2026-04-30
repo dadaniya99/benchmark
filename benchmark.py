@@ -449,6 +449,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             self.wfile.write(json.dumps({'ok': True}).encode('utf-8'))
+        elif self.path == '/api/shutdown':
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps({'ok': True}).encode('utf-8'))
+            threading.Thread(target=lambda: (time.sleep(0.5), server.shutdown()), daemon=True).start()
         else:
             self.send_error(404)
 
@@ -533,6 +540,7 @@ curl https://api.example.com/v1/chat/completions \
 <div class="err" id="parseErr">无法识别示例代码，请手动填写URL和协议</div>
 <button class="btn" id="btnStart" onclick="startTest()">开始测试</button>
 <button class="btn" id="btnStop" onclick="stopTest()" style="display:none;margin-top:8px;background:#f85149;color:#fff">停止测试</button>
+<button class="btn" id="btnShutdown" onclick="shutdownService()" style="margin-top:8px;background:#6e7681;color:#fff">退出服务</button>
 </div>
 <div class="card ps" id="ps"><div class="pb"><div class="pf" id="pf"></div></div><div class="pi"><span id="ct">准备中...</span><span id="pc">0 / 10</span></div></div>
 <div id="pcCard" class="card" style="display:none;text-align:center;color:var(--muted);font-size:.9rem"><span id="pcMsg"></span></div>
@@ -610,6 +618,11 @@ poll();
 function stopTest(){
 const btn=document.getElementById('btnStop');btn.disabled=true;btn.textContent='停止中...';
 fetch('/api/stop',{method:'POST',headers:{'Content-Type':'application/json'}}).catch(()=>{});
+}
+function shutdownService(){
+if(confirm('确定要退出服务吗？')){
+fetch('/api/shutdown',{method:'POST',headers:{'Content-Type':'application/json'}}).then(()=>{document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#8b949e;font-size:1.2rem">服务已关闭，可安全关闭此页面</div>';}).catch(()=>{window.close();});
+}
 }
 function restoreForm(){
 const s=window._savedForm;

@@ -29,7 +29,7 @@ jobs:
     
     - name: Build executable
       run: |
-        pyinstaller --onefile --windowed --name benchmark-windows benchmark.py
+        pyinstaller --onefile --name benchmark-windows benchmark.py
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
@@ -54,7 +54,7 @@ jobs:
     
     - name: Build executable
       run: |
-        pyinstaller --onefile --windowed --name benchmark-macos benchmark.py
+        pyinstaller --onefile --name benchmark-macos benchmark.py
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
