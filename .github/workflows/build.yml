@@ -86,7 +86,7 @@ jobs:
   release:
     needs: [build-windows, build-macos, build-linux]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     
     steps:
     - name: Download all artifacts
@@ -103,6 +103,7 @@ jobs:
           artifacts/benchmark-linux/benchmark-linux
         tag_name: ${{ github.ref_name }}
         name: Benchmark Tool ${{ github.ref_name }}
-        body: |n          See [Changelog](README.md#changelog) for details.
+        body: |
+          See [Changelog](README.md#changelog) for details.
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
